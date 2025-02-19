@@ -66,7 +66,7 @@ def process_name(message):
             user['name'] = message.text
             break
     save_users()
-    msg = bot.send_message(chat_id, "آیدی کالاف دیوتی خود را وارد کنید:")
+    msg = bot.send_message(chat_id, "آیدی کالاف موبایل خود را وارد کنید:")
     bot.register_next_step_handler(msg, process_cod_id)
 
 # پردازش آیدی کالاف
@@ -78,7 +78,7 @@ def process_cod_id(message):
             user['cod_id'] = message.text
             break
     save_users()
-    msg = bot.send_message(chat_id, "نام اکانت کالاف دیوتی خود را وارد کنید:")
+    msg = bot.send_message(chat_id, "نام اکانت کالاف موبایل خود را وارد کنید:")
     bot.register_next_step_handler(msg, process_cod_name)
 
 # پردازش نام اکانت کالاف
