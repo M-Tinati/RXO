@@ -49,7 +49,7 @@ def send_welcome(message):
         bot.send_message(chat_id, "سلام! لطفاً اطلاعات زیر را وارد کنید.")
         request_name(message)
     else:
-        bot.send_message(chat_id, "شما قبلاً اطلاعات خود را ثبت کرده‌اید.")
+        bot.send_message(chat_id, "❌شما قبلاً اطلاعات خود را ثبت کرده‌اید.")
 
 # درخواست نام و نام خانوادگی
 def request_name(message):
@@ -134,6 +134,7 @@ def send_info_to_admin(call):
             bot.send_message(admin, info_text)  # ارسال اطلاعات به تمامی ادمین‌ها
         
         bot.send_message(chat_id, "✅ اطلاعات شما با موفقیت ثبت شد!")
+
     else:
         bot.send_message(chat_id, "❌ خطا در ثبت اطلاعات. لطفاً دوباره تلاش کنید.")
 
@@ -156,7 +157,8 @@ def show_user_info_for_admin(message):
                              f"👤 نام: {user['name']}\n"   
                              f"🎮 آیدی کالاف: {user['cod_id']}\n"
                              f"🆔 نام اکانت: {user['cod_name']}\n"
-                             f"⭐ لول: {user['level']}\n\n")
+                             f"⭐ لول: {user['level']}\n\n"
+                             "------------------------\n")
                 all_info += info_text
         
         if all_info:
