@@ -3,15 +3,19 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import json
 
 # تنظیم Token ربات
-TOKEN = '7937158820:AAG_GEmXp5KeooUoIp3X_S9dIucEBXcoHT8'  # توکن ربات خود را جایگزین کنید
+TOKEN = 'توکن_ربات_اینجا'  # توکن ربات خود را جایگزین کنید
 
-# لیست آیدی‌های ادمین‌ها (چندین ادمین می‌تونن باشن)
-ADMIN_USERS = [1891217517 , 6442428304]  # آیدی‌های ادمین‌ها را در این لیست وارد کن
+# لیست آیدی‌های ادمین‌ها
+ADMIN_USERS = [1891217517, 6442428304]  # آیدی‌های ادمین‌ها را در این لیست وارد کن
 
 bot = telebot.TeleBot(TOKEN)
 
 # فایل ذخیره‌سازی اطلاعات کاربران
 USER_DATA_FILE = 'users_data.json'
+
+# دیکشنری برای پیگیری مراحل ثبت‌نام کاربران
+user_states = {}  # key: chat_id, value: مرحله ثبت‌نام
+user_data = {}  # ذخیره اطلاعات کاربران موقتاً تا پایان ثبت‌نام
 
 # بارگذاری اطلاعات کاربران از فایل JSON
 def load_users():
@@ -33,146 +37,109 @@ def save_users():
 # مقداردهی لیست کاربران هنگام اجرای برنامه
 users = load_users()
 
-# پرچم برای کنترل اینکه آیا اطلاعات پاک شده‌اند یا خیر
-refresh_flag = False
-
-# شروع ربات و خوشامدگویی
+# شروع ثبت‌نام
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    global users  # تا بتوانیم مقدار را ذخیره کنیم
     chat_id = message.chat.id
 
-    # بررسی اینکه آیا کاربر قبلاً ثبت شده یا نه
-    if not any(user['chat_id'] == chat_id for user in users):
-        users.append({'chat_id': chat_id, 'name': '', 'cod_id': '', 'cod_name': '', 'level': '', 'submitted': False})
-        save_users()
-        bot.send_message(chat_id, "سلام! لطفاً اطلاعات زیر را وارد کنید.")
-        request_name(message)
-    else:
-        bot.send_message(chat_id, "❌شما قبلاً اطلاعات خود را ثبت کرده‌اید.")
+    if chat_id in user_states:  # اگر کاربر قبلاً استارت زده
+        bot.send_message(chat_id, "❌ شما در حال حاضر در فرآیند ثبت‌نام هستید. لطفاً اطلاعات خواسته‌شده را وارد کنید.")
+        return
+    
+    if any(user['chat_id'] == chat_id for user in users):
+        bot.send_message(chat_id, "❌ شما قبلاً اطلاعات خود را ثبت کرده‌اید.")
+        return
 
-# درخواست نام و نام خانوادگی
-def request_name(message):
-    chat_id = message.chat.id
-    msg = bot.send_message(chat_id, "نام و نام خانوادگی خود را وارد کنید:")
-    bot.register_next_step_handler(msg, process_name)
+    user_states[chat_id] = "name"  # تنظیم مرحله به "نام"
+    user_data[chat_id] = {}  # ایجاد یک دیکشنری برای ذخیره اطلاعات کاربر
+    bot.send_message(chat_id, "سلام! لطفاً نام و نام خانوادگی خود را وارد کنید:")
 
-# پردازش نام و نام خانوادگی
+# دریافت نام و رفتن به مرحله بعد
+@bot.message_handler(func=lambda message: message.chat.id in user_states and user_states[message.chat.id] == "name")
 def process_name(message):
-    global users
     chat_id = message.chat.id
-    for user in users:
-        if user['chat_id'] == chat_id:
-            user['name'] = message.text
-            break
-    save_users()
-    msg = bot.send_message(chat_id, "آیدی کالاف موبایل خود را وارد کنید:")
-    bot.register_next_step_handler(msg, process_cod_id)
+    user_data[chat_id]["name"] = message.text  # ذخیره نام
+    user_states[chat_id] = "cod_id"  # تغییر مرحله به دریافت آیدی کالاف
+    bot.send_message(chat_id, "حالا لطفاً آیدی کالاف موبایل خود را وارد کنید:")
 
-# پردازش آیدی کالاف
+# دریافت آیدی کالاف و رفتن به مرحله بعد
+@bot.message_handler(func=lambda message: message.chat.id in user_states and user_states[message.chat.id] == "cod_id")
 def process_cod_id(message):
-    global users
     chat_id = message.chat.id
-    for user in users:
-        if user['chat_id'] == chat_id:
-            user['cod_id'] = message.text
-            break
-    save_users()
-    msg = bot.send_message(chat_id, "نام اکانت کالاف موبایل خود را وارد کنید:")
-    bot.register_next_step_handler(msg, process_cod_name)
+    user_data[chat_id]["cod_id"] = message.text  # ذخیره آیدی کالاف
+    user_states[chat_id] = "cod_name"  # تغییر مرحله به دریافت نام اکانت
+    bot.send_message(chat_id, "نام اکانت کالاف موبایل خود را وارد کنید:")
 
-# پردازش نام اکانت کالاف
+# دریافت نام اکانت و رفتن به مرحله بعد
+@bot.message_handler(func=lambda message: message.chat.id in user_states and user_states[message.chat.id] == "cod_name")
 def process_cod_name(message):
-    global users
     chat_id = message.chat.id
-    for user in users:
-        if user['chat_id'] == chat_id:
-            user['cod_name'] = message.text
-            break
-    save_users()
-    msg = bot.send_message(chat_id, "لول اکانت کالاف خود را وارد کنید:")
-    bot.register_next_step_handler(msg, process_level)
+    user_data[chat_id]["cod_name"] = message.text  # ذخیره نام اکانت
+    user_states[chat_id] = "level"  # تغییر مرحله به دریافت لول اکانت
+    bot.send_message(chat_id, "لول اکانت کالاف خود را وارد کنید:")
 
-# پردازش لول اکانت کالاف
+# دریافت لول اکانت و اتمام ثبت‌نام
+@bot.message_handler(func=lambda message: message.chat.id in user_states and user_states[message.chat.id] == "level")
 def process_level(message):
-    global users
     chat_id = message.chat.id
-    for user in users:
-        if user['chat_id'] == chat_id:
-            user['level'] = message.text
-            break
+    user_data[chat_id]["level"] = message.text  # ذخیره لول
+
+    # اضافه کردن کاربر به لیست و ذخیره در فایل JSON
+    users.append({
+        'chat_id': chat_id,
+        'name': user_data[chat_id]['name'],
+        'cod_id': user_data[chat_id]['cod_id'],
+        'cod_name': user_data[chat_id]['cod_name'],
+        'level': user_data[chat_id]['level'],
+        'submitted': True
+    })
     save_users()
-    
-    # دکمه ثبت اطلاعات
-    markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("✅ ثبت اطلاعات", callback_data='submit_info'))
-    
-    bot.send_message(chat_id, "همه اطلاعات دریافت شد. لطفاً دکمه زیر را برای ثبت بزنید.", reply_markup=markup)
 
-# پردازش کلیک روی دکمه ثبت اطلاعات
-@bot.callback_query_handler(func=lambda call: call.data == 'submit_info')
-def send_info_to_admin(call):
-    global users
-    chat_id = call.message.chat.id
-    user_info = next((user for user in users if user['chat_id'] == chat_id), None)
-    
-    if user_info:
-        if user_info['submitted']:
-            bot.send_message(chat_id, "❌ شما قبلاً اطلاعات خود را ثبت کرده‌اید.")
-            return
-        
-        user_info['submitted'] = True
-        save_users()
-        
-        info_text = (f"اطلاعات جدید ثبت شد:\n"
-                     f"👤 نام: {user_info['name']}\n"   
-                     f"🎮 آیدی کالاف: {user_info['cod_id']}\n"
-                     f"🆔 نام اکانت: {user_info['cod_name']}\n"
-                     f"⭐ لول: {user_info['level']}")
-        
-        for admin in ADMIN_USERS:
-            bot.send_message(admin, info_text)  # ارسال اطلاعات به تمامی ادمین‌ها
-        
-        bot.send_message(chat_id, "✅ اطلاعات شما با موفقیت ثبت شد!")
+    # ارسال اطلاعات نهایی
+    info_text = (f"✅ اطلاعات شما ثبت شد:\n"
+                 f"👤 نام: {user_data[chat_id]['name']}\n"
+                 f"🎮 آیدی کالاف: {user_data[chat_id]['cod_id']}\n"
+                 f"🆔 نام اکانت: {user_data[chat_id]['cod_name']}\n"
+                 f"⭐ لول: {user_data[chat_id]['level']}")
 
-    else:
-        bot.send_message(chat_id, "❌ خطا در ثبت اطلاعات. لطفاً دوباره تلاش کنید.")
+    bot.send_message(chat_id, info_text)
 
-# دریافت Chat ID کاربر
-@bot.message_handler(commands=['myid'])
-def send_my_id(message):
-    bot.send_message(message.chat.id, f"Your Chat ID: {message.chat.id}")
+    # ارسال اطلاعات به ادمین‌ها
+    for admin in ADMIN_USERS:
+        bot.send_message(admin, "📥 ثبت‌نام جدید:\n" + info_text)
+
+    # پاک کردن وضعیت کاربر بعد از اتمام ثبت‌نام
+    del user_states[chat_id]
+    del user_data[chat_id]
 
 # نمایش اطلاعات ثبت شده برای ادمین
 @bot.message_handler(commands=['namyesh'])
-def show_user_info(message):
-    global users  
-    users = load_users()  # اطمینان از خواندن داده‌ها
+def show_user_info_for_all(message):
+    users = load_users()  # خواندن داده‌های کاربران
 
     all_info = ""
     for user in users:
         if user.get('submitted', False):
-            info_text = (f"اطلاعات کاربر:\n"
-                         f"👤 نام: {user['name']}\n"   
+            info_text = (f"👤 نام: {user['name']}\n"
                          f"🎮 آیدی کالاف: {user['cod_id']}\n"
                          f"🆔 نام اکانت: {user['cod_name']}\n"
-                         f"⭐ لول: {user['level']}\n\n"
+                         f"⭐ لول: {user['level']}\n"
                          "------------------------\n")
             all_info += info_text
-    
+
     if all_info:
-        bot.send_message(message.chat.id, all_info)  # نمایش اطلاعات برای همه کاربران
+        bot.send_message(message.chat.id, f"📋 لیست کاربران ثبت‌شده:\n\n{all_info}")  
     else:
         bot.send_message(message.chat.id, "❌ هیچ اطلاعاتی ثبت نشده است.")
-        
-# پاک کردن اطلاعات کاربران
+
+# پاک کردن اطلاعات کاربران (فقط ادمین‌ها)
 @bot.message_handler(commands=['refresh'])
 def refresh_users(message):
-    global users
-    if message.chat.id in ADMIN_USERS:  # بررسی اگر کاربر یکی از ادمین‌ها باشد
-        users = []  # لیست کاربران را خالی می‌کند
+    if message.chat.id in ADMIN_USERS:
+        global users
+        users = []
         save_users()
-        bot.send_message(message.chat.id, "تمام اطلاعات کاربران پاک شد.")
+        bot.send_message(message.chat.id, "✅ تمام اطلاعات کاربران پاک شد.")
     else:
         bot.send_message(message.chat.id, "❌ شما ادمین نیستید و دسترسی به این دستور ندارید.")
 
