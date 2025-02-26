@@ -52,7 +52,7 @@ def send_welcome(message):
 
     user_states[chat_id] = "name"  # تنظیم مرحله به "نام"
     user_data[chat_id] = {}  # ایجاد یک دیکشنری برای ذخیره اطلاعات کاربر
-    bot.send_message(chat_id, "سلام! لطفاً نام و نام خانوادگی خود را وارد کنید:")
+    bot.send_message(chat_id, "سلام برای ثبت اطلاعات روی هر پیام ریپلای بزنید! لطفاً نام و نام خانوادگی خود را وارد کنید:")
 
 # دریافت نام و رفتن به مرحله بعد
 @bot.message_handler(func=lambda message: message.chat.id in user_states and user_states[message.chat.id] == "name")
