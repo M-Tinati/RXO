@@ -145,29 +145,26 @@ def send_my_id(message):
 
 # نمایش اطلاعات ثبت شده برای ادمین
 @bot.message_handler(commands=['namyesh'])
-def show_user_info_for_admin(message):
+def show_user_info(message):
     global users  
-    if message.chat.id in ADMIN_USERS:  # بررسی اگر کاربر یکی از ادمین‌ها باشد
-        users = load_users()  # اطمینان از خواندن داده‌ها
+    users = load_users()  # اطمینان از خواندن داده‌ها
 
-        all_info = ""
-        for user in users:
-            if user.get('submitted', False):
-                info_text = (f"اطلاعات کاربر:\n"
-                             f"👤 نام: {user['name']}\n"   
-                             f"🎮 آیدی کالاف: {user['cod_id']}\n"
-                             f"🆔 نام اکانت: {user['cod_name']}\n"
-                             f"⭐ لول: {user['level']}\n\n"
-                             "------------------------\n")
-                all_info += info_text
-        
-        if all_info:
-            bot.send_message(message.chat.id, all_info)  # نمایش اطلاعات برای ادمین‌ها
-        else:
-            bot.send_message(message.chat.id, "❌ هیچ اطلاعاتی ثبت نشده است.")
+    all_info = ""
+    for user in users:
+        if user.get('submitted', False):
+            info_text = (f"اطلاعات کاربر:\n"
+                         f"👤 نام: {user['name']}\n"   
+                         f"🎮 آیدی کالاف: {user['cod_id']}\n"
+                         f"🆔 نام اکانت: {user['cod_name']}\n"
+                         f"⭐ لول: {user['level']}\n\n"
+                         "------------------------\n")
+            all_info += info_text
+    
+    if all_info:
+        bot.send_message(message.chat.id, all_info)  # نمایش اطلاعات برای همه کاربران
     else:
-        bot.send_message(message.chat.id, "❌ شما ادمین نیستید و دسترسی به این اطلاعات ندارید.")
-
+        bot.send_message(message.chat.id, "❌ هیچ اطلاعاتی ثبت نشده است.")
+        
 # پاک کردن اطلاعات کاربران
 @bot.message_handler(commands=['refresh'])
 def refresh_users(message):
