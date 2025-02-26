@@ -3,7 +3,7 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import json
 
 # تنظیم Token ربات
-TOKEN = 'توکن_ربات_اینجا'  # توکن ربات خود را جایگزین کنید
+TOKEN = '7937158820:AAG_GEmXp5KeooUoIp3X_S9dIucEBXcoHT8'
 
 # لیست آیدی‌های ادمین‌ها
 ADMIN_USERS = [1891217517, 6442428304]  # آیدی‌های ادمین‌ها را در این لیست وارد کن
