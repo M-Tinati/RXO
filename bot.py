@@ -51,25 +51,6 @@ games = {}
 
 
 # دکمه‌ها برای هر ستون
-def get_game_markup(game_id):
-    markup = InlineKeyboardMarkup(row_width=7)  # ردیفی برای دکمه‌ها
-    for i in range(1, 8):
-        markup.add(InlineKeyboardButton(f"⬇️", callback_data=f"column_{game_id}_{i}"))
-    return markup
-
-# نمایش صفحه بازی
-def display_game(game_id):
-    game = games[game_id]
-    board = game['board']
-    display = ""
-    for row in board:
-        display += "|".join(row) + "\n"
-    
-    turn = "قرمز" if game['turn'] == 'red' else "آبی"
-    
-    return display, turn
-
-# شروع بازی
 @bot.message_handler(commands=['game'])
 def start_game(message):
     chat_id = message.chat.id
@@ -79,7 +60,7 @@ def start_game(message):
         return
     
     games[chat_id] = {
-        'board': [[' ' for _ in range(7)] for _ in range(6)],
+        'board': [['⬜' for _ in range(7)] for _ in range(6)],  # استفاده از مربع خالی به جای فضای خالی
         'turn': 'red',  # شروع با بازیکن قرمز
         'players': [chat_id],
     }
@@ -101,11 +82,11 @@ def column_click(call):
     board = game['board']
     
     for row in reversed(board):
-        if row[column] == ' ':
+        if row[column] == '⬜':  # پیدا کردن خانه خالی
             if game['turn'] == 'red':
-                row[column] = '🔴'
+                row[column] = '🔴'  # مهره قرمز
             else:
-                row[column] = '🔵'
+                row[column] = '🔵'  # مهره آبی
             break
     
     game['turn'] = 'blue' if game['turn'] == 'red' else 'red'
