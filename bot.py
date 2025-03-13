@@ -301,24 +301,26 @@ def view_purchases(message):
 
 
 
-
 ADMIN_USERS = [1891217517]  # آیدی تلگرام ادمین‌ها
 
 bot = telebot.TeleBot(TOKEN)
 
 # موقعیت الماس‌ها (پیش‌فرض)
 gem_positions = [(0, 0), (1, 2), (2, 1)]
-user_played = {}  # ذخیره وضعیت بازی کاربران
+user_progress = {}  # ذخیره‌ی الماس‌های پیدا شده‌ی هر کاربر
+user_lost = {}  # ذخیره‌ی وضعیت باخت کاربران
 
-def create_game_board(reveal_gems=False, gems=None):
+def create_game_board(chat_id, reveal_gems=False):
     markup = InlineKeyboardMarkup(row_width=3)
     for i in range(3):
         buttons = []
         for j in range(3):
-            if reveal_gems and (i, j) in gems:
-                btn_text = '💎'
+            if reveal_gems and (i, j) in gem_positions:
+                btn_text = '💎'  # نمایش الماس بعد از باخت
+            elif chat_id in user_progress and (i, j) in user_progress[chat_id]:
+                btn_text = '💎'  # الماس پیدا شده
             else:
-                btn_text = '❓'
+                btn_text = '❓'  # هنوز کشف نشده
             buttons.append(InlineKeyboardButton(btn_text, callback_data=f'box_{i}_{j}'))
         markup.add(*buttons)
     return markup
@@ -326,34 +328,51 @@ def create_game_board(reveal_gems=False, gems=None):
 @bot.message_handler(commands=['game'])
 def start_game(message):
     chat_id = message.chat.id
-    if chat_id in user_played and user_played[chat_id]:
-        bot.send_message(chat_id, "❌ شما قبلاً بازی کرده‌اید. لطفاً منتظر تنظیم مجدد بازی باشید.")
+    if chat_id in user_lost and user_lost[chat_id]:
+        bot.send_message(chat_id, "❌ شما باخته‌اید! لطفاً منتظر تنظیم مجدد بازی باشید.")
         return
-    bot.send_message(chat_id, "🎮 بازی شروع شد! یکی از باکس‌ها را انتخاب کنید:", reply_markup=create_game_board())
+    if chat_id in user_progress and len(user_progress[chat_id]) >= 3:
+        bot.send_message(chat_id, "✅ شما قبلاً هر ۳ الماس را پیدا کرده‌اید! منتظر تنظیم مجدد بازی باشید.")
+        return
+    
+    user_progress[chat_id] = []  # لیست خالی برای کاربر جدید
+    bot.send_message(chat_id, "🎮 بازی شروع شد! یکی از باکس‌ها را انتخاب کنید:", reply_markup=create_game_board(chat_id))
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('box_'))
 def box_clicked(call):
     chat_id = call.message.chat.id
-    if chat_id in user_played and user_played[chat_id]:
-        bot.answer_callback_query(call.id, "شما قبلاً بازی کرده‌اید!")
-        return
-    
     _, i, j = call.data.split('_')
     i, j = int(i), int(j)
-    user_played[chat_id] = True  # ثبت وضعیت بازی
+    
+    if chat_id in user_lost and user_lost[chat_id]:
+        bot.answer_callback_query(call.id, "❌ شما قبلاً باخته‌اید!")
+        return
+    
+    if chat_id not in user_progress:
+        user_progress[chat_id] = []
+    
+    if (i, j) in user_progress[chat_id]:
+        bot.answer_callback_query(call.id, "⛔ این الماس را قبلاً پیدا کرده‌اید!")
+        return
     
     if (i, j) in gem_positions:
-        bot.send_message(chat_id, "🎉 تبریک! شما الماس را پیدا کردید! 💎")
+        user_progress[chat_id].append((i, j))
+        bot.edit_message_text("🎉 شما یک الماس پیدا کردید! ادامه دهید...", chat_id, call.message.message_id, reply_markup=create_game_board(chat_id))
+        
+        if len(user_progress[chat_id]) == 3:
+            bot.send_message(chat_id, "🎉🎉 تبریک! شما هر ۳ الماس را پیدا کردید! 💎🏆")
     else:
-        bot.send_message(chat_id, "❌ متاسفم، شما باختید! این هم مکان الماس‌ها:", reply_markup=create_game_board(True, gem_positions))
+        user_lost[chat_id] = True  # ثبت وضعیت باخت
+        bot.send_message(chat_id, "❌ متاسفم، شما باختید! این هم مکان الماس‌ها:", reply_markup=create_game_board(chat_id, True))
 
 @bot.message_handler(commands=['reset'])
 def reset_game(message):
     if message.chat.id not in ADMIN_USERS:
         bot.send_message(message.chat.id, "❌ شما ادمین نیستید!")
         return
-    global user_played
-    user_played = {}
+    global user_progress, user_lost
+    user_progress = {}
+    user_lost = {}
     bot.send_message(message.chat.id, "✅ بازی برای همه کاربران بازنشانی شد!")
 
 @bot.message_handler(commands=['setgems'])
@@ -375,12 +394,6 @@ def update_gems(message):
             bot.send_message(message.chat.id, "❌ مختصات نامعتبر است! فقط عددهای بین 0 و 2 مجاز هستند.")
     except:
         bot.send_message(message.chat.id, "❌ فرمت نامعتبر! لطفاً به‌درستی وارد کنید.")
-
-
-
-
-
-
 
 
 
