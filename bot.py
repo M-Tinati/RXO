@@ -199,8 +199,9 @@ def process_password_for_purchase(message):
     purchase_states[chat_id] = "card_info"  # تغییر مرحله به نمایش شماره کارت
     # نمایش شماره کارت برای واریز
     bot.send_message(chat_id, "لطفاً وجه مورد نظر را به شماره کارت زیر واریز کنید:\n\n"
-                              "📝 شماره کارت: 1234-5678-9012-3456\n\n"
+                              "📝 شماره کارت: 0000-000-0000-0000\n\n"
                               "بعد از واریز، تصویر واریز رابه ایدی ادمین @Rxobotadmin ارسال کنید.((ارسال عکس اختیاری میباشد اگر عکس نگرفتید یک عکس خالی بفرستید یا عکس کالافتونو بفرستید)")
+
 
 # دریافت عکس واریزی (اختیاری)
 @bot.message_handler(content_types=['photo'], func=lambda message: message.chat.id in purchase_states and purchase_states[message.chat.id] == "card_info")
@@ -208,8 +209,36 @@ def process_receipt_image(message):
     chat_id = message.chat.id
     purchase_data[chat_id]["receipt_image"] = message.photo[-1].file_id  # ذخیره عکس واریزی
     purchase_states[chat_id] = "final_step"  # تغییر مرحله به نهایی
-    bot.send_message(chat_id, "تمام شد! برای ثبت نهایی اطلاعات بر روی دکمه زیر کلیک کنید.",
-                     reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("ثبت اطلاعات", callback_data="final_submit")))
+    bot.send_message(
+        chat_id,
+        "تمام شد! برای ثبت نهایی اطلاعات بر روی دکمه زیر کلیک کنید.",
+        reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("ثبت اطلاعات", callback_data="final_submit"))
+    )
+
+# اضافه کردن دکمه "بعدی" در صورتی که کاربر عکس ارسال نکرد
+@bot.message_handler(func=lambda message: message.chat.id in purchase_states and purchase_states[message.chat.id] == "card_info")
+def handle_no_receipt_image(message):
+    chat_id = message.chat.id
+    if 'photo' not in message:
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton("بعدی", callback_data="next_step"))  # دکمه بعدی
+
+        bot.send_message(
+            chat_id,
+            "شما عکسی ارسال نکردید. اگر مایلید به مرحله بعدی بروید، بر روی دکمه 'بعدی' کلیک کنید.",
+            reply_markup=markup
+        )
+
+# مدیریت دکمه "بعدی" و رفتن به مرحله بعد
+@bot.callback_query_handler(func=lambda call: call.data == "next_step")
+def next_step(call):
+    chat_id = call.message.chat.id
+    purchase_states[chat_id] = "final_step"  # تغییر مرحله به نهایی
+    bot.send_message(
+        chat_id,
+        "شما به مرحله بعدی رفته‌اید! برای ثبت نهایی اطلاعات بر روی دکمه زیر کلیک کنید.",
+        reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("ثبت اطلاعات", callback_data="final_submit"))
+    )
 
 # ثبت اطلاعات نهایی و ذخیره در فایل
 @bot.callback_query_handler(func=lambda call: call.data == "final_submit")
