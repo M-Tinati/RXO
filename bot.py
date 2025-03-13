@@ -45,11 +45,6 @@ users = load_users()
 
 
 
-import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-
-TOKEN = 'YOUR_BOT_TOKEN'  # توکن ربات خود را وارد کنید
-bot = telebot.TeleBot(TOKEN)
 
 # بازی اطلاعات بازیکنان و وضعیت بازی
 games = {}
