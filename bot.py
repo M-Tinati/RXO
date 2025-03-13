@@ -229,7 +229,7 @@ def submit_purchase_info(call):
         del purchase_data[chat_id]
 
 # نمایش اطلاعات خریداری شده برای ادمین (خریداران CP)
-@bot.message_handler(commands=['khareed'])
+@bot.message_handler(commands=['moshahede_kharidar'])
 def show_purchase_info_for_all(message):
     try:
         with open('purchases_data.json', 'r', encoding='utf-8') as f:
