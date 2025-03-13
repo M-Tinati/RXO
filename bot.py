@@ -47,7 +47,6 @@ users = load_users()
 
 # بازی اطلاعات بازیکنان و وضعیت بازی
 games = {}
-
 # دکمه‌ها برای هر ستون
 def get_game_markup(game_id):
     markup = InlineKeyboardMarkup(row_width=7)  # ردیفی برای دکمه‌ها
@@ -107,10 +106,10 @@ def join_game(call):
         bot.send_message(game_id, "یک بازیکن دوم به بازی پیوسته است! نوبت شما برای شروع بازی است.")
         
         display, turn = display_game(game_id)
-        bot.send_message(game_id, f"{display}\n\nنوبت بازیکن {turn}", reply_markup=get_game_markup(game_id))
+        # فقط یک پیام ارسال می‌کنیم و بازی در همان پیام به‌روز می‌شود
+        msg = bot.send_message(game_id, f"{display}\n\nنوبت بازیکن {turn}", reply_markup=get_game_markup(game_id))
         bot.send_message(chat_id, f"{display}\n\nنوبت بازیکن {turn}", reply_markup=get_game_markup(game_id))
-    else:
-        bot.send_message(chat_id, "❌ بازی یافت نشد.")
+        game['message_id'] = msg.message_id  # ذخیره شناسه پیام برای آپدیت آن
 
 # وقتی کاربر دکمه‌ای را فشار می‌دهد
 @bot.callback_query_handler(func=lambda call: call.data.startswith('column_'))
@@ -137,7 +136,7 @@ def column_click(call):
     if check_winner(board):
         # بازی تمام شده است
         display, _ = display_game(game_id)
-        bot.edit_message_text(f"{display}\n\n🎉 شما برنده شدید!", call.message.chat.id, call.message.message_id, reply_markup=None)
+        bot.edit_message_text(f"{display}\n\n🎉 شما برنده شدید!", call.message.chat.id, game['message_id'], reply_markup=None)
         
         # پایان بازی و حذف آن از وضعیت بازی
         del games[game_id]
@@ -146,7 +145,7 @@ def column_click(call):
     game['turn'] = 'blue' if game['turn'] == 'red' else 'red'
     
     display, turn = display_game(game_id)
-    bot.edit_message_text(f"{display}\n\nنوبت بازیکن {turn}", call.message.chat.id, call.message.message_id, reply_markup=get_game_markup(game_id))
+    bot.edit_message_text(f"{display}\n\nنوبت بازیکن {turn}", call.message.chat.id, game['message_id'], reply_markup=get_game_markup(game_id))
 
 # بررسی برنده بودن
 def check_winner(board):
@@ -163,6 +162,7 @@ def check_winner(board):
                 if r - 3 >= 0 and c + 3 < 7 and all(board[r-i][c+i] == player for i in range(4)):
                     return True
     return False
+
 
 
 
