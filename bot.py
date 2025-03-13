@@ -49,11 +49,12 @@ users = load_users()
 # بازی اطلاعات بازیکنان و وضعیت بازی
 games = {}
 
+
 # دکمه‌ها برای هر ستون
 def get_game_markup(game_id):
-    markup = InlineKeyboardMarkup()
+    markup = InlineKeyboardMarkup(row_width=7)  # ردیفی برای دکمه‌ها
     for i in range(1, 8):
-        markup.add(InlineKeyboardButton(f"ستون {i}", callback_data=f"column_{game_id}_{i}"))
+        markup.add(InlineKeyboardButton(f"⬇️", callback_data=f"column_{game_id}_{i}"))
     return markup
 
 # نمایش صفحه بازی
@@ -127,9 +128,6 @@ def check_winner(board):
                 if r - 3 >= 0 and c + 3 < 7 and all(board[r-i][c+i] == player for i in range(4)):
                     return True
     return False
-
-bot.polling(none_stop=True)
-
 
 
 
