@@ -41,12 +41,7 @@ def save_users():
 # مقداردهی لیست کاربران هنگام اجرای برنامه
 users = load_users()
 
-import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-from telebot import types
 
-TOKEN = 'YOUR_BOT_TOKEN'
-bot = telebot.TeleBot(TOKEN)
 
 # دیکشنری برای ذخیره اطلاعات بازی
 games = {}
