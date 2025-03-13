@@ -43,9 +43,11 @@ def save_users():
 users = load_users()
 
 
+
+
 # ایجاد بورد بازی Connect Four
 def create_board():
-    return np.zeros((6, 7), int)
+    return [[0] * 7 for _ in range(6)]  # 6 ردیف و 7 ستون
 
 # نمایش بورد بازی به صورت مناسب برای تلگرام
 def print_board(board):
@@ -66,7 +68,7 @@ players = {}  # نگهداری اطلاعات بازی
 turns = {}  # نوبت بازیکنان
 
 # شروع بازی
-@bot.message_handler(commands=['game'])
+@bot.message_handler(commands=['start'])
 def start_game(message):
     chat_id = message.chat.id
     players[chat_id] = {"player1": None, "player2": None, "board": create_board()}
@@ -155,11 +157,6 @@ def check_winner(board, row, col):
         if count >= 4:
             return True
     return False
-
-
-
-
-
 
 
 
