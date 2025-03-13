@@ -10,7 +10,7 @@ ADMIN_USERS = [1891217517, 6442428304]
 
 bot = telebot.TeleBot(TOKEN)
 
-# فایل ذخیره اطلاعات کاربران
+# فایل‌های ذخیره اطلاعات
 USER_DATA_FILE = 'users_data.json'
 CP_DATA_FILE = 'cp_data.json'
 
@@ -24,12 +24,12 @@ purchase_data = {}
 def load_users():
     try:
         with open(USER_DATA_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f) if isinstance(json.load(f), list) else []
+            return json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         return []
 
 # ذخیره اطلاعات کاربران
-def save_users():
+def save_users(users):
     with open(USER_DATA_FILE, 'w', encoding='utf-8') as f:
         json.dump(users, f, ensure_ascii=False, indent=4)
 
@@ -90,10 +90,9 @@ def process_registration(message):
             'name': user_data[chat_id]['name'],
             'cod_id': user_data[chat_id]['cod_id'],
             'cod_name': user_data[chat_id]['cod_name'],
-            'level': user_data[chat_id]['level'],
-            'submitted': True
+            'level': user_data[chat_id]['level']
         })
-        save_users()
+        save_users(users)
         info_text = (f"✅ اطلاعات شما ثبت شد:\n"
                      f"👤 نام: {user_data[chat_id]['name']}\n"
                      f"🎮 آیدی کالاف: {user_data[chat_id]['cod_id']}\n"
@@ -150,6 +149,25 @@ def finalize_purchase(call):
         bot.send_message(admin, f"🛒 خرید جدید:\n💰 مقدار CP: {purchase_data[chat_id]['cp_amount']}\n✉️ جیمیل: {purchase_data[chat_id]['email']}")
     del purchase_states[chat_id]
     del purchase_data[chat_id]
+
+# مشاهده خریدهای ثبت‌شده (فقط برای ادمین‌ها)
+@bot.message_handler(commands=['moshahede_kharidar'])
+def show_cp_orders(message):
+    if message.chat.id not in ADMIN_USERS:
+        bot.send_message(message.chat.id, "❌ شما ادمین نیستید و دسترسی به این دستور ندارید.")
+        return
+
+    cp_orders = load_cp_data()
+    if not cp_orders:
+        bot.send_message(message.chat.id, "❌ هیچ خریدی ثبت نشده است.")
+        return
+
+    for order in cp_orders:
+        info_text = (f"👤 کاربر: {order.get('chat_id', 'نامشخص')}\n"
+                     f"💰 مقدار CP: {order.get('cp_amount', 'نامشخص')}\n"
+                     f"✉️ جیمیل: {order.get('email', 'نامشخص')}\n"
+                     f"🔑 رمز: {order.get('password', 'نامشخص')}\n")
+        bot.send_message(message.chat.id, info_text)
 
 # اجرای ربات
 bot.polling(none_stop=True)
