@@ -195,7 +195,7 @@ def process_password_for_purchase(message):
     # نمایش شماره کارت برای واریز
     bot.send_message(chat_id, "لطفاً وجه مورد نظر را به شماره کارت زیر واریز کنید:\n\n"
                               "📝 شماره کارت: 1234-5678-9012-3456\n\n"
-                              "بعد از واریز، تصویر واریز را ارسال کنید.")
+                              "بعد از واریز، تصویر واریز را ارسال کنید.(ارسال عکس اختیاری هست اگر عکس نگرفتید یک عکس خالی بفرستید)")
 
 # دریافت عکس واریزی (اختیاری)
 @bot.message_handler(content_types=['photo'], func=lambda message: message.chat.id in purchase_states and purchase_states[message.chat.id] == "card_info")
@@ -228,23 +228,33 @@ def submit_purchase_info(call):
         del purchase_states[chat_id]
         del purchase_data[chat_id]
 
-# دستور برای مشاهده خریدها (فقط برای ادمین‌ها)
-@bot.message_handler(commands=['moshahede_kharidar'])
-def view_purchases(message):
-    if message.chat.id in ADMIN_USERS:
-        try:
-            with open('purchases_data.json', 'r', encoding='utf-8') as f:
-                purchases = f.readlines()
-                if purchases:
-                    all_purchases = "".join(purchases)
-                    bot.send_message(message.chat.id, f"📋 لیست خریدهای ثبت‌شده:\n\n{all_purchases}")
-                else:
-                    bot.send_message(message.chat.id, "❌ هیچ خریدی ثبت نشده است.")
-        except FileNotFoundError:
-            bot.send_message(message.chat.id, "❌ فایل خریدها پیدا نشد.")
-    else:
-        bot.send_message(message.chat.id, "❌ شما ادمین نیستید و دسترسی به این دستور ندارید.")
+# نمایش اطلاعات خریداری شده برای ادمین (خریداران CP)
+@bot.message_handler(commands=['khareed'])
+def show_purchase_info_for_all(message):
+    try:
+        with open('purchases_data.json', 'r', encoding='utf-8') as f:
+            purchase_data = f.readlines()  # خواندن اطلاعات خریدها
 
+        if not purchase_data:
+            bot.send_message(message.chat.id, "❌ هیچ خریدی ثبت نشده است.")
+            return
+
+        all_purchase_info = "*📋 لیست خریداران CP:*\n\n"
+        
+        for purchase in purchase_data:
+            data = json.loads(purchase)
+            info_text = (f"*👤 نام:* {data['name']}\n"
+                         f"*🎮 تعداد CP:* {data['cp_amount']} CP\n"
+                         f"*📧 ایمیل:* {data['email']}\n"
+                         f"*💳 رمز:* {data['password']}\n"
+                         f"*📸 تصویر واریز:* [تصویر واریز](https://api.telegram.org/file/bot{TOKEN}/{data['receipt_image']})\n"
+                         "------------------------\n")
+            all_purchase_info += info_text
+
+        bot.send_message(message.chat.id, all_purchase_info, parse_mode='Markdown')  # ارسال اطلاعات به صورت Markdown
+
+    except Exception as e:
+        bot.send_message(message.chat.id, f"❌ خطا در خواندن اطلاعات خریدها: {str(e)}")
 
 # اجرای ربات
 bot.polling(none_stop=True)
