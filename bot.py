@@ -49,24 +49,68 @@ users = load_users()
 # بازی اطلاعات بازیکنان و وضعیت بازی
 games = {}
 
+def get_game_markup(game_id):
+    markup = InlineKeyboardMarkup(row_width=7)  # ردیفی برای دکمه‌ها
+    for i in range(1, 8):
+        markup.add(InlineKeyboardButton(f"{i}", callback_data=f"column_{game_id}_{i}"))
+    return markup
 
-# دکمه‌ها برای هر ستون
+# نمایش صفحه بازی
+def display_game(game_id):
+    game = games[game_id]
+    board = game['board']
+    display = ""
+    for row in board:
+        display += " ".join(row) + "\n"
+    
+    turn = "قرمز" if game['turn'] == 'red' else "آبی"
+    
+    return display, turn
+
+# شروع بازی
 @bot.message_handler(commands=['game'])
 def start_game(message):
     chat_id = message.chat.id
-    # تنظیمات اولیه بازی
-    if chat_id in games:
-        bot.send_message(chat_id, "❌ شما در حال حاضر در یک بازی هستید.")
-        return
     
+    # اگر بازی قبلاً برای کاربر موجود بود، آن را حذف می‌کنیم و بازی جدید شروع می‌کنیم
+    if chat_id in games:
+        del games[chat_id]
+    
+    # ایجاد بازی جدید
     games[chat_id] = {
         'board': [['⬜' for _ in range(7)] for _ in range(6)],  # استفاده از مربع خالی به جای فضای خالی
         'turn': 'red',  # شروع با بازیکن قرمز
         'players': [chat_id],
     }
+    
+    markup = InlineKeyboardMarkup()
+    join_button = InlineKeyboardButton("پیوستن به بازی", callback_data=f"join_game_{chat_id}")
+    markup.add(join_button)
 
-    bot.send_message(chat_id, "بازی Connect Four شروع شد! شما قرمز هستید.\nلطفاً با استفاده از دکمه‌ها شروع کنید.",
-                     reply_markup=get_game_markup(chat_id))
+    bot.send_message(chat_id, "برای پیوستن به بازی Connect Four، منتظر بازیکن دوم بمانید.", reply_markup=markup)
+
+# وقتی کاربر دکمه‌ای را فشار می‌دهد
+@bot.callback_query_handler(func=lambda call: call.data.startswith('join_game_'))
+def join_game(call):
+    game_id = int(call.data.split('_')[2])  # کاربر اول (سازنده بازی)
+    chat_id = call.message.chat.id  # کاربر دوم
+
+    if game_id in games:
+        game = games[game_id]
+        if len(game['players']) == 2:
+            bot.send_message(chat_id, "❌ یک بازی دیگر در حال حاضر در جریان است.")
+            return
+        game['players'].append(chat_id)
+        game['turn'] = 'red'  # نوبت بازیکن اول (قرمز)
+        
+        bot.send_message(chat_id, "شما به بازی پیوسته‌اید! نوبت بازیکن اول است.")
+        bot.send_message(game_id, "یک بازیکن دوم به بازی پیوسته است! نوبت شما برای شروع بازی است.")
+        
+        display, turn = display_game(game_id)
+        bot.send_message(game_id, f"{display}\n\nنوبت بازیکن {turn}", reply_markup=get_game_markup(game_id))
+        bot.send_message(chat_id, f"{display}\n\nنوبت بازیکن {turn}", reply_markup=get_game_markup(game_id))
+    else:
+        bot.send_message(chat_id, "❌ بازی یافت نشد.")
 
 # وقتی کاربر دکمه‌ای را فشار می‌دهد
 @bot.callback_query_handler(func=lambda call: call.data.startswith('column_'))
@@ -89,6 +133,15 @@ def column_click(call):
                 row[column] = '🔵'  # مهره آبی
             break
     
+    # بررسی برنده شدن
+    if check_winner(board):
+        bot.send_message(game['players'][0], "🎉 شما برنده شدید!")
+        bot.send_message(game['players'][1], "🎉 شما برنده شدید!")
+        
+        # پایان بازی و حذف آن از وضعیت بازی
+        del games[game_id]
+        return
+    
     game['turn'] = 'blue' if game['turn'] == 'red' else 'red'
     
     display, turn = display_game(game_id)
@@ -109,6 +162,10 @@ def check_winner(board):
                 if r - 3 >= 0 and c + 3 < 7 and all(board[r-i][c+i] == player for i in range(4)):
                     return True
     return False
+
+
+
+
 
 
 
