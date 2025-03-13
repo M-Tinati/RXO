@@ -45,10 +45,10 @@ users = load_users()
 
 
 
-
 # بازی اطلاعات بازیکنان و وضعیت بازی
 games = {}
 
+# دکمه‌ها برای هر ستون
 def get_game_markup(game_id):
     markup = InlineKeyboardMarkup(row_width=7)  # ردیفی برای دکمه‌ها
     for i in range(1, 8):
@@ -135,8 +135,9 @@ def column_click(call):
     
     # بررسی برنده شدن
     if check_winner(board):
-        bot.send_message(game['players'][0], "🎉 شما برنده شدید!")
-        bot.send_message(game['players'][1], "🎉 شما برنده شدید!")
+        # بازی تمام شده است
+        display, _ = display_game(game_id)
+        bot.edit_message_text(f"{display}\n\n🎉 شما برنده شدید!", call.message.chat.id, call.message.message_id, reply_markup=None)
         
         # پایان بازی و حذف آن از وضعیت بازی
         del games[game_id]
