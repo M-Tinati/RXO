@@ -1,6 +1,7 @@
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 import json
+import numpy as np
 
 # تنظیم Token ربات
 TOKEN = '7937158820:AAG_GEmXp5KeooUoIp3X_S9dIucEBXcoHT8'
@@ -42,135 +43,121 @@ def save_users():
 users = load_users()
 
 
+# ایجاد بورد بازی Connect Four
+def create_board():
+    return np.zeros((6, 7), int)
 
-
-
-
-# بازی اطلاعات بازیکنان و وضعیت بازی
-games = {}
-
-# دکمه‌ها برای هر ستون
-def get_game_markup(game_id):
-    markup = InlineKeyboardMarkup(row_width=7)  # ردیفی برای دکمه‌ها
-    for i in range(1, 8):
-        markup.add(InlineKeyboardButton(f"{i}", callback_data=f"column_{game_id}_{i}"))
-    return markup
-
-# نمایش صفحه بازی
-def display_game(game_id):
-    game = games[game_id]
-    board = game['board']
-    display = ""
+# نمایش بورد بازی به صورت مناسب برای تلگرام
+def print_board(board):
+    board_str = "  1   2   3   4   5   6   7\n"  # شماره ستون‌ها در بالای بورد
     for row in board:
-        display += " ".join(row) + "\n"
-    
-    turn = "قرمز" if game['turn'] == 'red' else "آبی"
-    
-    return display, turn
+        for cell in row:
+            if cell == 0:
+                board_str += "🔲 "
+            elif cell == 1:
+                board_str += "🔴 "
+            elif cell == 2:
+                board_str += "🔵 "
+        board_str += "\n"
+    return board_str
+
+# متغیرهای سراسری
+players = {}  # نگهداری اطلاعات بازی
+turns = {}  # نوبت بازیکنان
 
 # شروع بازی
-@bot.message_handler(commands=['game'])
+@bot.message_handler(commands=['start'])
 def start_game(message):
     chat_id = message.chat.id
+    players[chat_id] = {"player1": None, "player2": None, "board": create_board()}
+    turns[chat_id] = 1  # بازیکن 1 شروع می‌کند
+    bot.send_message(chat_id, "سلام! به بازی Connect Four خوش آمدید! لطفاً نام خود را وارد کنید.")
+
+# ثبت نام بازیکنان
+@bot.message_handler(func=lambda message: True)
+def set_player(message):
+    chat_id = message.chat.id
+    player_name = message.text
+
+    if players[chat_id]["player1"] is None:
+        players[chat_id]["player1"] = player_name
+        bot.send_message(chat_id, f"بازیکن اول: {player_name} ثبت شد. اکنون بازیکن دوم وارد شود.")
+    elif players[chat_id]["player2"] is None:
+        players[chat_id]["player2"] = player_name
+        bot.send_message(chat_id, f"بازیکن دوم: {player_name} ثبت شد. بازی شروع می‌شود!")
+        display_board(message)
+    else:
+        bot.send_message(chat_id, "هر دو بازیکن ثبت نام کرده‌اند.")
+
+# نمایش بورد بازی
+def display_board(message):
+    chat_id = message.chat.id
+    board = players[chat_id]["board"]
+    board_str = print_board(board)
     
-    # اگر بازی قبلاً برای کاربر موجود بود، آن را حذف می‌کنیم و بازی جدید شروع می‌کنیم
-    if chat_id in games:
-        del games[chat_id]
-    
-    # ایجاد بازی جدید
-    games[chat_id] = {
-        'board': [['⬜' for _ in range(7)] for _ in range(6)],  # استفاده از مربع خالی به جای فضای خالی
-        'turn': 'red',  # شروع با بازیکن قرمز
-        'players': [chat_id],
-        'message_id': None,
-    }
-    
-    markup = InlineKeyboardMarkup()
-    join_button = InlineKeyboardButton("پیوستن به بازی", callback_data=f"join_game_{chat_id}")
-    markup.add(join_button)
+    markup = types.InlineKeyboardMarkup()
+    for i in range(7):
+        markup.add(types.InlineKeyboardButton(text=str(i+1), callback_data=f"move_{i}"))
 
-    bot.send_message(chat_id, "برای پیوستن به بازی Connect Four، منتظر بازیکن دوم بمانید.", reply_markup=markup)
+    bot.send_message(chat_id, f"نوبت {players[chat_id]['player1' if turns[chat_id] == 1 else 'player2']} است:\n\n{board_str}\n\nلطفاً یک ستون را انتخاب کنید:", reply_markup=markup)
 
-# وقتی کاربر دکمه‌ای را فشار می‌دهد
-@bot.callback_query_handler(func=lambda call: call.data.startswith('join_game_'))
-def join_game(call):
-    game_id = int(call.data.split('_')[2])  # کاربر اول (سازنده بازی)
-    chat_id = call.message.chat.id  # کاربر دوم
+# حرکت در بازی با استفاده از دکمه‌ها
+@bot.callback_query_handler(func=lambda call: call.data.startswith('move_'))
+def make_move(call):
+    chat_id = call.message.chat.id
+    column = int(call.data.split('_')[1])
 
-    if game_id in games:
-        game = games[game_id]
-        if len(game['players']) == 2:
-            bot.send_message(chat_id, "❌ یک بازی دیگر در حال حاضر در جریان است.")
-            return
-        game['players'].append(chat_id)
-        game['turn'] = 'red'  # نوبت بازیکن اول (قرمز)
-        
-        bot.send_message(chat_id, "شما به بازی پیوسته‌اید! نوبت بازیکن اول است.")
-        bot.send_message(game_id, "یک بازیکن دوم به بازی پیوسته است! نوبت شما برای شروع بازی است.")
-        
-        display, turn = display_game(game_id)
-        # فقط یک پیام ارسال می‌کنیم و بازی در همان پیام به‌روز می‌شود
-        msg = bot.send_message(game_id, f"{display}\n\nنوبت بازیکن {turn}", reply_markup=get_game_markup(game_id))
-        bot.send_message(chat_id, f"{display}\n\nنوبت بازیکن {turn}", reply_markup=get_game_markup(game_id))
-        game['message_id'] = msg.message_id  # ذخیره شناسه پیام برای آپدیت آن
-
-# وقتی کاربر دکمه‌ای را فشار می‌دهد
-@bot.callback_query_handler(func=lambda call: call.data.startswith('column_'))
-def column_click(call):
-    game_id, column = call.data.split('_')[1], int(call.data.split('_')[2]) - 1
-    game_id = int(game_id)
-
-    if game_id not in games:
+    if chat_id not in players:
+        bot.send_message(chat_id, "برای شروع بازی ابتدا دستور /start را وارد کنید.")
         return
     
-    game = games[game_id]
-    column = int(column)
-    board = game['board']
-    
-    # چک کردن نوبت بازی
-    if (game['turn'] == 'red' and call.message.chat.id != game['players'][0]) or (game['turn'] == 'blue' and call.message.chat.id != game['players'][1]):
-        bot.answer_callback_query(call.id, "نوبت شما نیست!")
-        return
-    
-    # قرار دادن مهره در ستون
-    for row in reversed(board):
-        if row[column] == '⬜':  # پیدا کردن خانه خالی
-            if game['turn'] == 'red':
-                row[column] = '🔴'  # مهره قرمز
-            else:
-                row[column] = '🔵'  # مهره آبی
+    board = players[chat_id]["board"]
+    player = turns[chat_id]
+    row = -1
+    for r in range(5, -1, -1):
+        if board[r][column] == 0:
+            row = r
             break
-    
-    # بررسی برنده شدن
-    if check_winner(board):
-        display, _ = display_game(game_id)
-        bot.edit_message_text(f"{display}\n\n🎉 شما برنده شدید!", call.message.chat.id, game['message_id'], reply_markup=None)
         
-        # پایان بازی و حذف آن از وضعیت بازی
-        del games[game_id]
+    if row == -1:
+        bot.answer_callback_query(call.id, "این ستون پر است. لطفاً یک ستون خالی انتخاب کنید.")
         return
     
-    # تغییر نوبت
-    game['turn'] = 'blue' if game['turn'] == 'red' else 'red'
+    board[row][column] = player
+    winner = check_winner(board, row, column)
     
-    display, turn = display_game(game_id)
-    bot.edit_message_text(f"{display}\n\nنوبت بازیکن {turn}", call.message.chat.id, game['message_id'], reply_markup=get_game_markup(game_id))
+    if winner:
+        bot.send_message(chat_id, f"بازیکن {'🔴 ' if player == 1 else '🔵 '} برنده شد!\n\n{print_board(board)}")
+        players[chat_id] = {"player1": None, "player2": None, "board": create_board()}
+        turns[chat_id] = 1
+    else:
+        turns[chat_id] = 2 if player == 1 else 1
+        display_board(call.message)
 
-# بررسی برنده بودن
-def check_winner(board):
-    for r in range(6):
-        for c in range(7):
-            if board[r][c]:
-                player = board[r][c]
-                if c + 3 < 7 and all(board[r][c+i] == player for i in range(4)):
-                    return True
-                if r + 3 < 6 and all(board[r+i][c] == player for i in range(4)):
-                    return True
-                if r + 3 < 6 and c + 3 < 7 and all(board[r+i][c+i] == player for i in range(4)):
-                    return True
-                if r - 3 >= 0 and c + 3 < 7 and all(board[r-i][c+i] == player for i in range(4)):
-                    return True
+# بررسی برنده
+def check_winner(board, row, col):
+    player = board[row][col]
+    directions = [(1, 0), (0, 1), (1, 1), (1, -1)]  # راست، پایین، قطر بالا به پایین، قطر پایین به بالا
+    for dr, dc in directions:
+        count = 1
+        for i in range(1, 4):
+            r, c = row + dr * i, col + dc * i
+            if 0 <= r < 6 and 0 <= c < 7 and board[r][c] == player:
+                count += 1
+            else:
+                break
+        for i in range(1, 4):
+            r, c = row - dr * i, col - dc * i
+            if 0 <= r < 6 and 0 <= c < 7 and board[r][c] == player:
+                count += 1
+            else:
+                break
+        if count >= 4:
+            return True
     return False
+
+
+
 
 
 
