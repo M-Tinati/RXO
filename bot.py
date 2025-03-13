@@ -142,6 +142,103 @@ def refresh_users(message):
         bot.send_message(message.chat.id, "✅ تمام اطلاعات کاربران پاک شد.")
     else:
         bot.send_message(message.chat.id, "❌ شما ادمین نیستید و دسترسی به این دستور ندارید.")
+# دکمه‌های شیشه‌ای برای خرید CP
+@bot.message_handler(commands=['kharid_cp'])
+def buy_cp(message):
+    chat_id = message.chat.id
+    markup = InlineKeyboardMarkup()
+    # دکمه‌ها برای انتخاب خرید
+    markup.add(InlineKeyboardButton("50 CP - 100,000 تومان", callback_data="buy_50"))
+    markup.add(InlineKeyboardButton("70 CP - 120,000 تومان", callback_data="buy_70"))
+    markup.add(InlineKeyboardButton("100 CP - 200,000 تومان", callback_data="buy_100"))
+    bot.send_message(chat_id, "لطفاً تعداد CP را انتخاب کنید:", reply_markup=markup)
+
+# مدیریت انتخاب CP و مراحل بعدی
+@bot.callback_query_handler(func=lambda call: call.data.startswith('buy_'))
+def handle_buy_cp(call):
+    chat_id = call.message.chat.id
+    cp_amount = call.data.split('_')[1]  # استخراج تعداد CP
+    user_states[chat_id] = "name"  # شروع پروسه ثبت خرید
+
+    # ذخیره تعداد CP خریداری شده موقتاً
+    user_data[chat_id] = {'cp_amount': cp_amount}
+    
+    bot.send_message(chat_id, f"شما {cp_amount} CP خریداری کرده‌اید.\nلطفاً نام و نام خانوادگی خود را وارد کنید:")
+
+# دریافت نام و اطلاعات جیمیل و رمز
+@bot.message_handler(func=lambda message: message.chat.id in user_states and user_states[message.chat.id] == "name")
+def process_name_for_purchase(message):
+    chat_id = message.chat.id
+    user_data[chat_id]["name"] = message.text  # ذخیره نام
+    user_states[chat_id] = "email"  # تغییر مرحله به دریافت جیمیل
+    bot.send_message(chat_id, "لطفاً جیمیل خود را وارد کنید:")
+
+# دریافت جیمیل و رمز جیمیل
+@bot.message_handler(func=lambda message: message.chat.id in user_states and user_states[message.chat.id] == "email")
+def process_email_for_purchase(message):
+    chat_id = message.chat.id
+    user_data[chat_id]["email"] = message.text  # ذخیره جیمیل
+    user_states[chat_id] = "password"  # تغییر مرحله به دریافت رمز
+    bot.send_message(chat_id, "لطفاً رمز جیمیل خود را وارد کنید:")
+
+# دریافت رمز جیمیل
+@bot.message_handler(func=lambda message: message.chat.id in user_states and user_states[message.chat.id] == "password")
+def process_password_for_purchase(message):
+    chat_id = message.chat.id
+    user_data[chat_id]["password"] = message.text  # ذخیره رمز جیمیل
+    user_states[chat_id] = "card_info"  # تغییر مرحله به نمایش شماره کارت
+    # نمایش شماره کارت برای واریز
+    bot.send_message(chat_id, "لطفاً وجه مورد نظر را به شماره کارت زیر واریز کنید:\n\n"
+                              "📝 شماره کارت: 1234-5678-9012-3456\n\n"
+                              "بعد از واریز، تصویر واریز را ارسال کنید.")
+
+# دریافت عکس واریزی (اختیاری)
+@bot.message_handler(content_types=['photo'], func=lambda message: message.chat.id in user_states and user_states[message.chat.id] == "card_info")
+def process_receipt_image(message):
+    chat_id = message.chat.id
+    user_data[chat_id]["receipt_image"] = message.photo[-1].file_id  # ذخیره عکس واریزی
+    user_states[chat_id] = "final_step"  # تغییر مرحله به نهایی
+    bot.send_message(chat_id, "تمام شد! برای ثبت نهایی اطلاعات بر روی دکمه زیر کلیک کنید.",
+                     reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("ثبت اطلاعات", callback_data="final_submit")))
+
+# ثبت اطلاعات نهایی و ذخیره در فایل
+@bot.callback_query_handler(func=lambda call: call.data == "final_submit")
+def submit_purchase_info(call):
+    chat_id = call.message.chat.id
+    if chat_id in user_data:
+        # ذخیره اطلاعات در فایل JSON
+        user_purchase_info = {
+            'chat_id': chat_id,
+            'cp_amount': user_data[chat_id]['cp_amount'],
+            'name': user_data[chat_id]['name'],
+            'email': user_data[chat_id]['email'],
+            'password': user_data[chat_id]['password'],
+            'receipt_image': user_data[chat_id].get('receipt_image', None)
+        }
+        with open('purchases_data.json', 'a', encoding='utf-8') as f:
+            json.dump(user_purchase_info, f, ensure_ascii=False, indent=4)
+            f.write("\n")  # یک خط جدید برای هر خرید
+        bot.send_message(chat_id, "✅ اطلاعات شما ثبت شد!")
+        # پاک کردن اطلاعات کاربر
+        del user_states[chat_id]
+        del user_data[chat_id]
+
+# دستور برای ادمین جهت مشاهده خریدها
+@bot.message_handler(commands=['moshahede_kharidar'])
+def view_purchases(message):
+    if message.chat.id in ADMIN_USERS:
+        try:
+            with open('purchases_data.json', 'r', encoding='utf-8') as f:
+                purchases = f.readlines()
+                if purchases:
+                    all_purchases = "".join(purchases)
+                    bot.send_message(message.chat.id, f"📋 لیست خریدهای ثبت‌شده:\n\n{all_purchases}")
+                else:
+                    bot.send_message(message.chat.id, "❌ هیچ خریدی ثبت نشده است.")
+        except FileNotFoundError:
+            bot.send_message(message.chat.id, "❌ فایل خریدها پیدا نشد.")
+    else:
+        bot.send_message(message.chat.id, "❌ شما ادمین نیستید و دسترسی به این دستور ندارید.")
 
 # اجرای ربات
 bot.polling(none_stop=True)
