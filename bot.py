@@ -6,7 +6,7 @@ import json
 TOKEN = '7937158820:AAG_GEmXp5KeooUoIp3X_S9dIucEBXcoHT8'
 
 # لیست آیدی‌های ادمین‌ها
-ADMIN_USERS = [1891217517,6442428304,6982477095]  # آیدی‌های ادمین‌ها را در این لیست وارد کن
+ADMIN_USERS = [1891217517, 6442428304,6982477095]  # آیدی‌های ادمین‌ها را در این لیست وارد کن
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -154,8 +154,13 @@ def buy_cp(message):
     markup = InlineKeyboardMarkup()
     # دکمه‌ها برای انتخاب خرید
     markup.add(InlineKeyboardButton("50 CP - 100,000 تومان", callback_data="buy_50"))
-    markup.add(InlineKeyboardButton("70 CP - 120,000 تومان", callback_data="buy_70"))
-    markup.add(InlineKeyboardButton("100 CP - 200,000 تومان", callback_data="buy_100"))
+    markup.add(InlineKeyboardButton("60 CP - 100,000 تومان", callback_data="buy_60"))
+    markup.add(InlineKeyboardButton("70 CP - 100,000 تومان", callback_data="buy_70"))
+    markup.add(InlineKeyboardButton("100 CP - 100,000 تومان", callback_data="buy_100"))
+    markup.add(InlineKeyboardButton("240 CP - 100,000 تومان", callback_data="buy_240"))
+    markup.add(InlineKeyboardButton("320 CP - 100,000 تومان", callback_data="buy_320"))
+    markup.add(InlineKeyboardButton("500 CP - 100,000 تومان", callback_data="buy_500"))
+    markup.add(InlineKeyboardButton("1080 CP - 100,000 تومان", callback_data="buy_1080"))
     bot.send_message(chat_id, "لطفاً تعداد CP را انتخاب کنید:", reply_markup=markup)
 
 # مدیریت انتخاب CP و مراحل بعدی
@@ -202,20 +207,9 @@ def process_password_for_purchase(message):
 def process_receipt_image(message):
     chat_id = message.chat.id
     purchase_data[chat_id]["receipt_image"] = message.photo[-1].file_id  # ذخیره عکس واریزی
-    
-    # دریافت لینک عکس از file_id
-    file_info = bot.get_file(message.photo[-1].file_id)
-    file_path = file_info.file_path
-    file_url = f'https://api.telegram.org/file/bot{TOKEN}/{file_path}'
-    
-    # ارسال عکس به ادمین
-    for admin in ADMIN_USERS:
-        bot.send_photo(admin, file_url, caption="عکس واریزی از کاربر")
-
     purchase_states[chat_id] = "final_step"  # تغییر مرحله به نهایی
     bot.send_message(chat_id, "تمام شد! برای ثبت نهایی اطلاعات بر روی دکمه زیر کلیک کنید.",
                      reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("ثبت اطلاعات", callback_data="final_submit")))
-
 
 # ثبت اطلاعات نهایی و ذخیره در فایل
 @bot.callback_query_handler(func=lambda call: call.data == "final_submit")
@@ -234,7 +228,7 @@ def submit_purchase_info(call):
         with open('purchases_data.json', 'a', encoding='utf-8') as f:
             json.dump(user_purchase_info, f, ensure_ascii=False, indent=4)
             f.write("\n")  # یک خط جدید برای هر خرید
-        bot.send_message(chat_id, "✅ اطلاعات شما ثبت شد!")
+        bot.send_message(chat_id, "✅  اطلاعات شما ثبت شد تا 24 ساعت آینده واریز میشه!")
         # پاک کردن اطلاعات کاربر
         del purchase_states[chat_id]
         del purchase_data[chat_id]
@@ -254,20 +248,6 @@ def view_purchases(message):
             bot.send_message(message.chat.id, "❌ فایل خریدها پیدا نشد.")
     else:
         bot.send_message(message.chat.id, "❌ شما ادمین نیستید و دسترسی به این دستور ندارید.")
-# دستور برای حذف اطلاعات خرید (فقط برای ادمین‌ها)
-@bot.message_handler(commands=['remove_all_purchases'])
-def remove_all_purchases(message):
-    if message.chat.id in ADMIN_USERS:
-        try:
-            # پاک کردن محتویات فایل purchases_data.json
-            with open('purchases_data.json', 'w', encoding='utf-8') as f:
-                f.truncate(0)  # محتوای فایل را پاک می‌کند
-            bot.send_message(message.chat.id, "✅ تمام اطلاعات خریدهای ثبت‌شده حذف شد.")
-        except FileNotFoundError:
-            bot.send_message(message.chat.id, "❌ فایل خریدها پیدا نشد.")
-    else:
-        bot.send_message(message.chat.id, "❌ شما ادمین نیستید و دسترسی به این دستور ندارید.")
-
 
 
 # اجرای ربات
