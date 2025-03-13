@@ -206,33 +206,24 @@ def process_password_for_purchase(message):
 @bot.message_handler(content_types=['photo'], func=lambda message: message.chat.id in purchase_states and purchase_states[message.chat.id] == "card_info")
 def process_receipt_image(message):
     chat_id = message.chat.id
-    purchase_data[chat_id]["receipt_image"] = message.photo[-1].file_id  # ذخیره عکس واریزی
+    file_id = message.photo[-1].file_id  # دریافت file_id از عکس ارسال شده
+    purchase_data[chat_id]["receipt_image"] = file_id  # ذخیره فایل ID عکس رسید
+
+    # ذخیره عکس رسید در فایل جداگانه برای استفاده ادمین
+    try:
+        with open('user_photos.json', 'r', encoding='utf-8') as photo_file:
+            photos_data = json.load(photo_file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        photos_data = {}
+
+    photos_data[str(chat_id)] = file_id  # ذخیره file_id با chat_id
+
+    with open('user_photos.json', 'w', encoding='utf-8') as photo_file:
+        json.dump(photos_data, photo_file, ensure_ascii=False, indent=4)
     purchase_states[chat_id] = "final_step"  # تغییر مرحله به نهایی
     bot.send_message(chat_id, "تمام شد! برای ثبت نهایی اطلاعات بر روی دکمه زیر کلیک کنید.",
                      reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("ثبت اطلاعات", callback_data="final_submit")))
 
-# ثبت اطلاعات نهایی و ذخیره در فایل
-@bot.callback_query_handler(func=lambda call: call.data == "final_submit")
-def submit_purchase_info(call):
-    chat_id = call.message.chat.id
-    if chat_id in purchase_data:
-        # ذخیره اطلاعات در فایل JSON
-        user_purchase_info = {
-            'chat_id': chat_id,
-            'cp_amount': purchase_data[chat_id]['cp_amount'],
-            'name': purchase_data[chat_id]['name'],
-            'email': purchase_data[chat_id]['email'],
-            'password': purchase_data[chat_id]['password'],
-            'receipt_image': purchase_data[chat_id].get('receipt_image', None)
-        }
-        with open('purchases_data.json', 'a', encoding='utf-8') as f:
-            json.dump(user_purchase_info, f, ensure_ascii=False, indent=4)
-            f.write("\n")  # یک خط جدید برای هر خرید
-        bot.send_message(chat_id, "✅  اطلاعات شما ثبت شد تا 24 ساعت آینده واریز میشه!")
-        # پاک کردن اطلاعات کاربر
-        del purchase_states[chat_id]
-        del purchase_data[chat_id]
-# دستور برای مشاهده خریدها (فقط برای ادمین‌ها)
 @bot.message_handler(commands=['moshahede_kharidar'])
 def view_purchases(message):
     if message.chat.id in ADMIN_USERS:
@@ -240,8 +231,35 @@ def view_purchases(message):
             with open('purchases_data.json', 'r', encoding='utf-8') as f:
                 purchases = f.readlines()
                 if purchases:
-                    all_purchases = "".join(purchases)
-                    bot.send_message(message.chat.id, f"📋 لیست خریدهای ثبت‌شده:\n\n{all_purchases}")
+                    all_purchases = ""
+                    for purchase in purchases:
+                        purchase_info = json.loads(purchase)  # بارگذاری اطلاعات خرید
+                        chat_id = purchase_info['chat_id']
+                        
+                        # بارگذاری عکس رسید از فایل user_photos.json
+                        with open('user_photos.json', 'r', encoding='utf-8') as photo_file:
+                            photos_data = json.load(photo_file)
+                        
+                        receipt_image_id = photos_data.get(str(chat_id), None)  # گرفتن file_id عکس رسید
+                        
+                        # ساخت متن برای نمایش اطلاعات خرید
+                        purchase_text = (f"👤 نام: {purchase_info['name']}\n"
+                                         f"🎮 مقدار cp: {purchase_info['cp_amount']}\n"
+                                         f"🆔 ایمیل: {purchase_info['email']}\n"
+                                         f"💳 پرداخت با {purchase_info['cp_amount']} CP\n"
+                                         f"🔑 رمز عبور: {purchase_info.get('password', 'رمز عبور ثبت نشده')}\n"
+                                         f"------------------------\n")
+                        all_purchases += purchase_text
+                        
+                        # اگر عکس رسید وجود داشت، آن را برای ادمین ارسال می‌کنیم
+                        if receipt_image_id:
+                            bot.send_photo(message.chat.id, receipt_image_id)
+
+                    # ارسال تمام اطلاعات خرید به ادمین
+                    if all_purchases:
+                        bot.send_message(message.chat.id, f"📋 لیست خریدهای ثبت‌شده:\n\n{all_purchases}")
+                    else:
+                        bot.send_message(message.chat.id, "❌ هیچ خریدی ثبت نشده است.")
                 else:
                     bot.send_message(message.chat.id, "❌ هیچ خریدی ثبت نشده است.")
         except FileNotFoundError:
