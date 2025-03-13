@@ -302,65 +302,79 @@ def view_purchases(message):
 
 
 
+ADMIN_USERS = [1891217517]  # آیدی تلگرام ادمین‌ها
 
+bot = telebot.TeleBot(TOKEN)
 
-# چیدمان ثابت الماس‌ها
-gems = [0, 3, 6]  # این شماره‌ها مشخص می‌کنند که الماس‌ها در باکس‌های 1، 4 و 7 قرار دارند
+# موقعیت الماس‌ها (پیش‌فرض)
+gem_positions = [(0, 0), (1, 2), (2, 1)]
+user_played = {}  # ذخیره وضعیت بازی کاربران
 
-# دکمه‌های شیشه‌ای در قالب ۳x۳
-def generate_game_board():
+def create_game_board(reveal_gems=False, gems=None):
     markup = InlineKeyboardMarkup(row_width=3)
-    
-    buttons = []
-    for i in range(9):
-        button_text = f"باکس {i+1}"
-        callback_data = f"box_{i}"
-        # بررسی اینکه آیا این باکس الماس دارد یا نه
-        if i in gems:
-            button_text = "💎"  # الماس در این باکس
-        buttons.append(InlineKeyboardButton(button_text, callback_data=callback_data))
-    
-    markup.add(*buttons)
+    for i in range(3):
+        buttons = []
+        for j in range(3):
+            if reveal_gems and (i, j) in gems:
+                btn_text = '💎'
+            else:
+                btn_text = '❓'
+            buttons.append(InlineKeyboardButton(btn_text, callback_data=f'box_{i}_{j}'))
+        markup.add(*buttons)
     return markup
 
 @bot.message_handler(commands=['game'])
 def start_game(message):
     chat_id = message.chat.id
-    markup = generate_game_board()
-    
-    bot.send_message(chat_id, "لطفاً یکی از باکس‌ها را انتخاب کنید:", reply_markup=markup)
-    bot.data[chat_id] = {'gems': gems, 'attempts': 0}  # ذخیره اطلاعات بازی کاربر
+    if chat_id in user_played and user_played[chat_id]:
+        bot.send_message(chat_id, "❌ شما قبلاً بازی کرده‌اید. لطفاً منتظر تنظیم مجدد بازی باشید.")
+        return
+    bot.send_message(chat_id, "🎮 بازی شروع شد! یکی از باکس‌ها را انتخاب کنید:", reply_markup=create_game_board())
 
-# مدیریت انتخاب باکس‌ها
 @bot.callback_query_handler(func=lambda call: call.data.startswith('box_'))
-def handle_box_selection(call):
+def box_clicked(call):
     chat_id = call.message.chat.id
-    selected_box = int(call.data.split('_')[1])  # شماره باکس انتخابی
-    user_data = bot.data.get(chat_id)
+    if chat_id in user_played and user_played[chat_id]:
+        bot.answer_callback_query(call.id, "شما قبلاً بازی کرده‌اید!")
+        return
     
-    if user_data:
-        gems = user_data['gems']
-        attempts = user_data['attempts'] + 1
-        # بررسی اینکه آیا الماس در این باکس است یا نه
-        if selected_box in gems:
-            bot.send_message(chat_id, "🎉 شما برنده شدید! الماس در این باکس بود.")
+    _, i, j = call.data.split('_')
+    i, j = int(i), int(j)
+    user_played[chat_id] = True  # ثبت وضعیت بازی
+    
+    if (i, j) in gem_positions:
+        bot.send_message(chat_id, "🎉 تبریک! شما الماس را پیدا کردید! 💎")
+    else:
+        bot.send_message(chat_id, "❌ متاسفم، شما باختید! این هم مکان الماس‌ها:", reply_markup=create_game_board(True, gem_positions))
+
+@bot.message_handler(commands=['reset'])
+def reset_game(message):
+    if message.chat.id not in ADMIN_USERS:
+        bot.send_message(message.chat.id, "❌ شما ادمین نیستید!")
+        return
+    global user_played
+    user_played = {}
+    bot.send_message(message.chat.id, "✅ بازی برای همه کاربران بازنشانی شد!")
+
+@bot.message_handler(commands=['setgems'])
+def set_gems(message):
+    if message.chat.id not in ADMIN_USERS:
+        bot.send_message(message.chat.id, "❌ شما ادمین نیستید!")
+        return
+    bot.send_message(message.chat.id, "لطفاً موقعیت جدید الماس‌ها را با فرمت x,y;x,y;x,y ارسال کنید.")
+
+@bot.message_handler(func=lambda message: message.chat.id in ADMIN_USERS and ',' in message.text)
+def update_gems(message):
+    global gem_positions
+    try:
+        new_positions = [tuple(map(int, pos.split(','))) for pos in message.text.split(';')]
+        if all(0 <= x < 3 and 0 <= y < 3 for x, y in new_positions):
+            gem_positions = new_positions
+            bot.send_message(message.chat.id, "✅ موقعیت الماس‌ها به‌روزرسانی شد!")
         else:
-            bot.send_message(chat_id, "😞 شما باختید. الماس در باکس‌های دیگر بود.")
-        
-        # نشان دادن باقی‌مانده الماس‌ها
-        remaining_gems = ", ".join([str(i+1) for i in gems if i != selected_box])
-        bot.send_message(chat_id, f"💎 الماس‌ها در باکس‌های {remaining_gems} قرار داشتند.")
-        
-        # افزایش تعداد تلاش‌ها و ارسال مجدد دکمه‌ها
-        if attempts < 3:  # بعد از ۳ بار باخت یا برد، بازی تمام می‌شود
-            markup = generate_game_board()
-            bot.send_message(chat_id, "یک بازی جدید شروع شد! یکی از باکس‌ها را انتخاب کنید:", reply_markup=markup)
-            bot.data[chat_id] = {'gems': gems, 'attempts': attempts}
-        else:
-            bot.send_message(chat_id, "❌ بازی تمام شد.")
-
-
-
+            bot.send_message(message.chat.id, "❌ مختصات نامعتبر است! فقط عددهای بین 0 و 2 مجاز هستند.")
+    except:
+        bot.send_message(message.chat.id, "❌ فرمت نامعتبر! لطفاً به‌درستی وارد کنید.")
 
 
 
