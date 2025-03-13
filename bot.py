@@ -45,8 +45,10 @@ users = load_users()
 
 
 
+
 # بازی اطلاعات بازیکنان و وضعیت بازی
 games = {}
+
 # دکمه‌ها برای هر ستون
 def get_game_markup(game_id):
     markup = InlineKeyboardMarkup(row_width=7)  # ردیفی برای دکمه‌ها
@@ -80,6 +82,7 @@ def start_game(message):
         'board': [['⬜' for _ in range(7)] for _ in range(6)],  # استفاده از مربع خالی به جای فضای خالی
         'turn': 'red',  # شروع با بازیکن قرمز
         'players': [chat_id],
+        'message_id': None,
     }
     
     markup = InlineKeyboardMarkup()
@@ -124,6 +127,12 @@ def column_click(call):
     column = int(column)
     board = game['board']
     
+    # چک کردن نوبت بازی
+    if (game['turn'] == 'red' and call.message.chat.id != game['players'][0]) or (game['turn'] == 'blue' and call.message.chat.id != game['players'][1]):
+        bot.answer_callback_query(call.id, "نوبت شما نیست!")
+        return
+    
+    # قرار دادن مهره در ستون
     for row in reversed(board):
         if row[column] == '⬜':  # پیدا کردن خانه خالی
             if game['turn'] == 'red':
@@ -134,7 +143,6 @@ def column_click(call):
     
     # بررسی برنده شدن
     if check_winner(board):
-        # بازی تمام شده است
         display, _ = display_game(game_id)
         bot.edit_message_text(f"{display}\n\n🎉 شما برنده شدید!", call.message.chat.id, game['message_id'], reply_markup=None)
         
@@ -142,6 +150,7 @@ def column_click(call):
         del games[game_id]
         return
     
+    # تغییر نوبت
     game['turn'] = 'blue' if game['turn'] == 'red' else 'red'
     
     display, turn = display_game(game_id)
@@ -162,6 +171,8 @@ def check_winner(board):
                 if r - 3 >= 0 and c + 3 < 7 and all(board[r-i][c+i] == player for i in range(4)):
                     return True
     return False
+
+
 
 
 
