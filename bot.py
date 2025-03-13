@@ -6,7 +6,7 @@ import json
 TOKEN = '7937158820:AAG_GEmXp5KeooUoIp3X_S9dIucEBXcoHT8'
 
 # لیست آیدی‌های ادمین‌ها
-ADMIN_USERS = [1891217517, 6442428304]  # آیدی‌های ادمین‌ها را در این لیست وارد کن
+ADMIN_USERS = [1891217517,6442428304,6982477095]  # آیدی‌های ادمین‌ها را در این لیست وارد کن
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -202,9 +202,20 @@ def process_password_for_purchase(message):
 def process_receipt_image(message):
     chat_id = message.chat.id
     purchase_data[chat_id]["receipt_image"] = message.photo[-1].file_id  # ذخیره عکس واریزی
+    
+    # دریافت لینک عکس از file_id
+    file_info = bot.get_file(message.photo[-1].file_id)
+    file_path = file_info.file_path
+    file_url = f'https://api.telegram.org/file/bot{TOKEN}/{file_path}'
+    
+    # ارسال عکس به ادمین
+    for admin in ADMIN_USERS:
+        bot.send_photo(admin, file_url, caption="عکس واریزی از کاربر")
+
     purchase_states[chat_id] = "final_step"  # تغییر مرحله به نهایی
     bot.send_message(chat_id, "تمام شد! برای ثبت نهایی اطلاعات بر روی دکمه زیر کلیک کنید.",
                      reply_markup=InlineKeyboardMarkup().add(InlineKeyboardButton("ثبت اطلاعات", callback_data="final_submit")))
+
 
 # ثبت اطلاعات نهایی و ذخیره در فایل
 @bot.callback_query_handler(func=lambda call: call.data == "final_submit")
@@ -243,6 +254,20 @@ def view_purchases(message):
             bot.send_message(message.chat.id, "❌ فایل خریدها پیدا نشد.")
     else:
         bot.send_message(message.chat.id, "❌ شما ادمین نیستید و دسترسی به این دستور ندارید.")
+# دستور برای حذف اطلاعات خرید (فقط برای ادمین‌ها)
+@bot.message_handler(commands=['remove_all_purchases'])
+def remove_all_purchases(message):
+    if message.chat.id in ADMIN_USERS:
+        try:
+            # پاک کردن محتویات فایل purchases_data.json
+            with open('purchases_data.json', 'w', encoding='utf-8') as f:
+                f.truncate(0)  # محتوای فایل را پاک می‌کند
+            bot.send_message(message.chat.id, "✅ تمام اطلاعات خریدهای ثبت‌شده حذف شد.")
+        except FileNotFoundError:
+            bot.send_message(message.chat.id, "❌ فایل خریدها پیدا نشد.")
+    else:
+        bot.send_message(message.chat.id, "❌ شما ادمین نیستید و دسترسی به این دستور ندارید.")
+
 
 
 # اجرای ربات
