@@ -223,7 +223,7 @@ def submit_purchase_info(call):
         del user_states[chat_id]
         del user_data[chat_id]
 
-# دستور برای ادمین جهت مشاهده خریدها
+# دستور برای مشاهده خریدها (فقط برای ادمین‌ها)
 @bot.message_handler(commands=['moshahede_kharidar'])
 def view_purchases(message):
     if message.chat.id in ADMIN_USERS:
@@ -239,6 +239,7 @@ def view_purchases(message):
             bot.send_message(message.chat.id, "❌ فایل خریدها پیدا نشد.")
     else:
         bot.send_message(message.chat.id, "❌ شما ادمین نیستید و دسترسی به این دستور ندارید.")
+
 
 # اجرای ربات
 bot.polling(none_stop=True)
