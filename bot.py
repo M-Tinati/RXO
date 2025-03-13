@@ -303,7 +303,6 @@ def view_purchases(message):
 
 ADMIN_GEM = [1891217517]  # آیدی تلگرام ادمین‌ها
 
-bot = telebot.TeleBot(TOKEN)
 
 # موقعیت الماس‌ها (پیش‌فرض)
 gem_positions = [(0, 0), (1, 2), (2, 1)]
