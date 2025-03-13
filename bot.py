@@ -229,9 +229,10 @@ def submit_purchase_info(call):
         del purchase_data[chat_id]
 
 # نمایش اطلاعات خریداری شده برای ادمین (خریداران CP)
-@bot.message_handler(commands=['moshahede_kharidar'])
+@bot.message_handler(commands=['khareed'])
 def show_purchase_info_for_all(message):
     try:
+        # باز کردن فایل خریدها
         with open('purchases_data.json', 'r', encoding='utf-8') as f:
             purchase_data = f.readlines()  # خواندن اطلاعات خریدها
 
@@ -242,19 +243,31 @@ def show_purchase_info_for_all(message):
         all_purchase_info = "*📋 لیست خریداران CP:*\n\n"
         
         for purchase in purchase_data:
-            data = json.loads(purchase)
-            info_text = (f"*👤 نام:* {data['name']}\n"
-                         f"*🎮 تعداد CP:* {data['cp_amount']} CP\n"
-                         f"*📧 ایمیل:* {data['email']}\n"
-                         f"*💳 رمز:* {data['password']}\n"
-                         f"*📸 تصویر واریز:* [تصویر واریز](https://api.telegram.org/file/bot{TOKEN}/{data['receipt_image']})\n"
-                         "------------------------\n")
-            all_purchase_info += info_text
+            try:
+                # تبدیل هر خط از داده‌ها به دیکشنری
+                data = json.loads(purchase)
 
-        bot.send_message(message.chat.id, all_purchase_info, parse_mode='Markdown')  # ارسال اطلاعات به صورت Markdown
+                info_text = (f"*👤 نام:* {data['name']}\n"
+                             f"*🎮 تعداد CP:* {data['cp_amount']} CP\n"
+                             f"*📧 ایمیل:* {data['email']}\n"
+                             f"*💳 رمز:* {data['password']}\n"
+                             f"*📸 تصویر واریز:* [تصویر واریز](https://api.telegram.org/file/bot{TOKEN}/{data['receipt_image']})\n"
+                             "------------------------\n")
+                all_purchase_info += info_text
 
+            except json.JSONDecodeError as e:
+                # در صورتی که خطا در تبدیل JSON پیش آمد
+                bot.send_message(message.chat.id, f"❌ خطا در پردازش خریدها: {str(e)}")
+                return
+
+        # ارسال اطلاعات به صورت Markdown
+        bot.send_message(message.chat.id, all_purchase_info, parse_mode='Markdown')  
+
+    except FileNotFoundError:
+        bot.send_message(message.chat.id, "❌ فایل خریدها پیدا نشد.")
     except Exception as e:
         bot.send_message(message.chat.id, f"❌ خطا در خواندن اطلاعات خریدها: {str(e)}")
+
 
 # اجرای ربات
 bot.polling(none_stop=True)
