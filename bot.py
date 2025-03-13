@@ -68,7 +68,7 @@ players = {}  # نگهداری اطلاعات بازی
 turns = {}  # نوبت بازیکنان
 
 # شروع بازی
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=['game'])
 def start_game(message):
     chat_id = message.chat.id
     players[chat_id] = {"player1": None, "player2": None, "board": create_board()}
