@@ -301,7 +301,7 @@ def view_purchases(message):
 
 
 
-ADMIN_USERS = [1891217517]  # آیدی تلگرام ادمین‌ها
+ADMIN_GEM = [1891217517]  # آیدی تلگرام ادمین‌ها
 
 bot = telebot.TeleBot(TOKEN)
 
@@ -365,9 +365,9 @@ def box_clicked(call):
         user_lost[chat_id] = True  # ثبت وضعیت باخت
         bot.send_message(chat_id, "❌ متاسفم، شما باختید! این هم مکان الماس‌ها:", reply_markup=create_game_board(chat_id, True))
 
-@bot.message_handler(commands=['reset'])
+@bot.message_handler(commands=['resetgem'])
 def reset_game(message):
-    if message.chat.id not in ADMIN_USERS:
+    if message.chat.id not in ADMIN_GEM:
         bot.send_message(message.chat.id, "❌ شما ادمین نیستید!")
         return
     global user_progress, user_lost
@@ -377,12 +377,12 @@ def reset_game(message):
 
 @bot.message_handler(commands=['setgems'])
 def set_gems(message):
-    if message.chat.id not in ADMIN_USERS:
+    if message.chat.id not in ADMIN_GEM:
         bot.send_message(message.chat.id, "❌ شما ادمین نیستید!")
         return
     bot.send_message(message.chat.id, "لطفاً موقعیت جدید الماس‌ها را با فرمت x,y;x,y;x,y ارسال کنید.")
 
-@bot.message_handler(func=lambda message: message.chat.id in ADMIN_USERS and ',' in message.text)
+@bot.message_handler(func=lambda message: message.chat.id in ADMIN_GEM and ',' in message.text)
 def update_gems(message):
     global gem_positions
     try:
