@@ -7,7 +7,7 @@ import json
 TOKEN = '7937158820:AAG_GEmXp5KeooUoIp3X_S9dIucEBXcoHT8'
 
 # لیست آیدی‌های ادمین‌ها
-ADMIN_USERS = [1891217517,6442428304,6982477095]  # آیدی‌های ادمین‌ها را در این لیست وارد کن
+ADMIN_USERS = [1891217517,6442428304]  # آیدی‌های ادمین‌ها را در این لیست وارد کن
 
 bot = telebot.TeleBot(TOKEN)
 
