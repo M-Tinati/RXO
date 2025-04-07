@@ -42,19 +42,21 @@ users = load_users()
 
 # پیام‌های اتوماتیک
 def send_automatic_messages():
-    users = load_users()
     message_text = (
         "🔔 لینک حمایت: https://reymit.ir/mariyarxo\n\n"
         "🎮 روزهای شنبه - دوشنبه - چهارشنبه استریم از کانال یوتیوب ساعت ۹ شب\n\n"
         "📺 لینک کانال یوتیوب ماریا: https://www.youtube.com/@MariyaRxo"
     )
-    for user in users:
-        if user.get('submitted', False):
-            bot.send_message(user['chat_id'], message_text)
 
-# زمان‌بندی پیام‌ها برای ارسال هر 8 ساعت یک‌بار
+    # ارسال پیام به همه کاربرانی که استارت زده‌اند
+    for chat_id in user_states.keys():  # استفاده از user_states به جای users
+        print(f"ارسال پیام به {chat_id}")  # برای بررسی
+        bot.send_message(chat_id, message_text)
+
+# زمان‌بندی پیام‌ها برای ارسال هر 1 دقیقه یک‌بار
 def schedule_messages():
-    schedule.every(1).minutes.do(send_automatic_messages)  # ارسال هر 8 ساعت
+    schedule.every(1).minutes.do(send_automatic_messages)  # ارسال هر 1 دقیقه
+    print("زمان‌بندی شروع شده است.")  # برای لاگ کردن زمان‌بندی
     while True:
         schedule.run_pending()
         time.sleep(1)
