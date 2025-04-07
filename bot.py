@@ -53,7 +53,7 @@ def send_automatic_messages():
 
 # زمان‌بندی پیام‌ها برای ارسال هر 8 ساعت یک‌بار
 def schedule_messages():
-    schedule.every(8).hours.do(send_automatic_messages)  # ارسال هر 8 ساعت
+    schedule.every(1).minutes.do(send_automatic_messages)  # ارسال هر 8 ساعت
     while True:
         schedule.run_pending()
         time.sleep(1)
