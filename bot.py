@@ -91,7 +91,7 @@ def send_automatic_messages():
 
 
 def schedule_messages():
-    schedule.every(1).minutes.do(send_automatic_messages)  # ارسال هر 1 دقیقه
+    schedule.every(26).minutes.do(send_automatic_messages)  # ارسال هر 1 دقیقه
     print("زمان‌بندی شروع شده است.")
     while True:
         schedule.run_pending()
